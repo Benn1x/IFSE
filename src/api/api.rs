@@ -2,7 +2,7 @@ use crate::search_engine::search_engine::Engine;
 use std::process::exit;
 
 use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, RecvError, Sender};
+use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 
 pub struct API {

@@ -18,11 +18,11 @@ impl Search {
 
 #[derive(Clone, Debug)]
 pub struct Results {
-    folder: Folder,
+    _folder: Folder,
 }
 
 impl Results {
     pub fn new(folder: Folder) -> Self {
-        Self { folder }
+        Self { _folder: folder }
     }
 }

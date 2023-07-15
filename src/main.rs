@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 use log::info;
 use log::LevelFilter;
 use log4rs::append::console::ConsoleAppender;

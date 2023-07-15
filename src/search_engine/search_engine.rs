@@ -1,8 +1,6 @@
 use crate::file_system::folder::Folder;
 use crate::search_engine::{backend::backend::Backend, search::Results};
 use log::info;
-use std::env::VarError;
-use std::num::ParseIntError;
 
 use crate::search_engine::search::Search;
 use moka::sync::Cache;
@@ -10,7 +8,7 @@ use moka::sync::Cache;
 pub struct Engine {
     cache: Cache<String, Results>,
     backend: Backend,
-    folder: Folder,
+    _folder: Folder,
 }
 
 impl Engine {
@@ -25,7 +23,7 @@ impl Engine {
         Self {
             cache: Cache::new(max_num),
             backend: Backend::new(),
-            folder: Folder::new(location),
+            _folder: Folder::new(location),
         }
     }
 
