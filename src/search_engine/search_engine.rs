@@ -67,4 +67,8 @@ impl Engine {
     pub fn iterate(&self) -> Iter<'_, String, Results> {
         self.cache.iter()
     }
+
+    pub fn shutdown(&self) {
+        // TODO: I need a method that safes the cache to a file and later at boot up it should be reloaded
+    }
 }
