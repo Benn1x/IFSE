@@ -1,13 +1,14 @@
-use crate::search_engine::search_engine::Engine;
 use std::process::exit;
-
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 
-use crate::api::lexer::Input;
+use crate::api::commands::execute;
 use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
+
+use crate::api::lexer::Input;
+use crate::search_engine::search_engine::Engine;
 
 pub struct API {
     engine: Engine,
@@ -64,7 +65,7 @@ impl API {
         loop {
             let input = rx.recv();
             match input {
-                Ok(inp) => match Input::new(inp) {
+                Ok(inp) => match Input::new(&inp) {
                     Input::Exit => {
                         self.engine.shutdown();
                         exit(0)
@@ -84,12 +85,14 @@ impl API {
                             .send(true)
                             .expect("error while sending, maybe is the receiver thread down");
                     }
-                    Input::Help => {
-                        println!("Help, this will be here in a decade or so shrug");
+
+                    Input::Command(command) => {
+                        execute(command.as_ref());
                         tx_appr
                             .send(true)
                             .expect("error while sending, maybe is the receiver thread down");
                     }
+
                     Input::Input(input) => {
                         let res = self.engine.get(input);
                         println!("{:?}", res);
