@@ -5,6 +5,8 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 
+use rustyline::error::ReadlineError;
+use rustyline::DefaultEditor;
 pub struct API {
     engine: Engine,
 }
@@ -19,27 +21,38 @@ impl API {
         let (tx_appr, rx_appr): (Sender<bool>, Receiver<bool>) = mpsc::channel();
 
         let input = thread::spawn(move || {
-            use std::io::{stdin, stdout, Write};
+            let mut rl = match DefaultEditor::new() {
+                Ok(rl) => rl,
+                Err(err) => panic!("Unable to init reader, with err: {:?}", err),
+            };
+            if rl.load_history("history.txt").is_err() {
+                println!("No previous history.");
+            }
+
             loop {
-                let mut s = String::new();
-                print!("Please enter some text: ");
-                let _ = stdout().flush();
-                stdin()
-                    .read_line(&mut s)
-                    .expect("Did not enter a correct string");
-                if let Some('\n') = s.chars().next_back() {
-                    s.pop();
+                let readline = rl.readline(">> ");
+                match readline {
+                    Ok(line) => {
+                        rl.add_history_entry(line.clone())
+                            .expect("Unable to write to history");
+                        tx.send(line)
+                            .expect("error while sending, maybe is the receiver thread down");
+                    }
+                    Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => tx
+                        .send(String::from(":q"))
+                        .expect("error while sending, maybe is the receiver thread down"),
+                    Err(err) => {
+                        panic!("Error: {:?}", err);
+                    }
                 }
-                if let Some('\r') = s.chars().next_back() {
-                    s.pop();
+                match rl.save_history("history.txt") {
+                    Ok(_) => (),
+                    Err(err) => panic!("{:?}", err),
                 }
-                tx.send(s)
-                    .expect("error while sending, maybe is the receiver thread down");
                 let appr = match rx_appr.recv() {
                     Ok(t) => t,
                     Err(e) => panic!("Failed to get verification {:?}", e),
                 };
-
                 if !appr {
                     exit(1);
                 }
@@ -49,13 +62,37 @@ impl API {
         loop {
             let input = rx.recv();
             match input {
-                Ok(inp) => {
-                    let res = self.engine.get(inp);
-                    println!("{:?}", res);
-                    tx_appr
-                        .send(true)
-                        .expect("error while sending, maybe is the receiver thread down");
-                }
+                Ok(inp) => match &*inp {
+                    ":q" => exit(0),
+                    ":cs" => {
+                        println!("Total cache size is {:?}, currently in cache are {:?} elements. Leaving {:?} free spaces", self.engine.get_size() ,self.engine.cache_size(), self.engine.get_size() - self.engine.cache_size());
+                        tx_appr
+                            .send(true)
+                            .expect("error while sending, maybe is the receiver thread down");
+                    }
+                    ":c" => {
+                        println!("Cache Content: ");
+                        for element in self.engine.iterate() {
+                            println!("{:?}", element);
+                        }
+                        tx_appr
+                            .send(true)
+                            .expect("error while sending, maybe is the receiver thread down");
+                    }
+                    ":h" => {
+                        println!("Help, this will be here in a decade or so shrug");
+                        tx_appr
+                            .send(true)
+                            .expect("error while sending, maybe is the receiver thread down");
+                    }
+                    _ => {
+                        let res = self.engine.get(inp);
+                        println!("{:?}", res);
+                        tx_appr
+                            .send(true)
+                            .expect("error while sending, maybe is the receiver thread down");
+                    }
+                },
                 Err(recver) => {
                     println!("{:?}", recver);
                     tx_appr

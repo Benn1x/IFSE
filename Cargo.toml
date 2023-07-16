@@ -9,3 +9,4 @@ edition = "2021"
 log = "0.4.19"
 log4rs = "1.2.0"
 moka = "0.11.2"
+rustyline = { version = "12.0.0", features = ["with-file-history"]}
