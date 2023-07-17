@@ -25,4 +25,7 @@ impl Results {
     pub fn new(folder: Folder) -> Self {
         Self { _folder: folder }
     }
+    pub fn unwarp(&self) -> &str {
+        self._folder.get_folder_location()
+    }
 }

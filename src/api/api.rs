@@ -73,7 +73,11 @@ impl API {
                     Input::Cache => {
                         println!("Cache Content: ");
                         for element in self.engine.iterate() {
-                            println!("{:?}", element);
+                            println!(
+                                "Phrase search: {:?} : Found in location {:?}",
+                                element.0,
+                                element.1.unwarp()
+                            );
                         }
                         tx_appr
                             .send(true)

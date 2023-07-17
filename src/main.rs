@@ -13,6 +13,7 @@ pub mod database;
 pub mod file_system;
 pub mod search_engine;
 
+// TODO Config System, still need to decide what kinda config
 fn main() {
     let stdout = ConsoleAppender::builder().build();
     let config = Config::builder()

@@ -5,7 +5,10 @@ pub fn execute(command: &Command) {
     match command.get_command().as_str() {
         ":h" => {
             for arg in command.get_args().iter() {
-                match arg {
+                match *arg {
+                    ":" | "com" | "command" => {
+                        println!(": is the Prefix for a Command");
+                    }
                     _ => {
                         println!("Unknown Argument for :h");
                         break;
