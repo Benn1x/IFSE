@@ -99,7 +99,7 @@ impl API {
 
                     Input::Input(input) => {
                         let res = self.engine.get(input);
-                        println!("{:?}", res);
+                        println!("Found in: {:?}", res.unwarp());
                         tx_appr
                             .send(true)
                             .expect("error while sending, maybe is the receiver thread down");

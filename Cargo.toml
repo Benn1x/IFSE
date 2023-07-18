@@ -11,5 +11,6 @@ grep-regex = "0.1.11"
 log = "0.4.19"
 log4rs = "1.2.0"
 moka = "0.11.2"
+pdf-extract = "0.6.5"
 rustyline = { version = "12.0.0", features = ["with-file-history"]}
 walkdir = "2.3.3"
