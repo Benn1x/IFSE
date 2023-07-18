@@ -14,6 +14,13 @@ impl Search {
             results: None,
         }
     }
+    pub fn get_phrase(&self) -> &str {
+        &*self.phrase
+    }
+
+    pub fn get_folder(&self) -> &Folder {
+        &self.folder
+    }
 }
 
 #[derive(Clone, Debug)]

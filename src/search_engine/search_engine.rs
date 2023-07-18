@@ -45,10 +45,9 @@ impl Engine {
             }
             None => {
                 info!("Not found in cache. Start searching!");
-                let search =
-                    Search::new(String::from(&*phrase), Folder::new(String::from(&*phrase)));
+                let search = Search::new(String::from(&*phrase), Folder::new(String::from("src/")));
                 info!("Start Search!");
-                let result = self.backend.search(search);
+                let result = self.backend.global_search(search);
                 info!("Found! Gave cache to decide if its put in cache!");
                 self.cache.insert(phrase, result.clone());
 
