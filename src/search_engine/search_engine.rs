@@ -1,12 +1,12 @@
 use crate::file_system::folder::Folder;
-use crate::search_engine::{backend::backend::Backend, search::Results};
+use crate::search_engine::backend::backend::Backend;
 use log::{info, warn};
 
-use crate::search_engine::search::Search;
+use crate::search_engine::search::{Search, SearchRes};
 use moka::sync::{Cache, Iter};
 
 pub struct Engine {
-    cache: Cache<String, Results>,
+    cache: Cache<String, SearchRes>,
     size: u64,
     backend: Backend,
     _folder: Folder,
@@ -37,7 +37,7 @@ impl Engine {
         }
     }
 
-    pub fn get(&mut self, phrase: String) -> Results {
+    pub fn get(&mut self, phrase: String) -> SearchRes {
         match self.cache.get(&*phrase) {
             Some(entry) => {
                 info!("Found inside cache");
@@ -47,7 +47,7 @@ impl Engine {
                 info!("Not found in cache. Start searching!");
                 let search = Search::new(
                     String::from(&*phrase),
-                    Folder::new(String::from("/home/benn1x/Dokumente/schule/test/")),
+                    Folder::new(String::from("/home/benn1x/")),
                 );
                 info!("Start Search!");
                 let result = self.backend.global_search(search);
@@ -66,7 +66,7 @@ impl Engine {
         self.size
     }
 
-    pub fn iterate(&self) -> Iter<'_, String, Results> {
+    pub fn iterate(&self) -> Iter<'_, String, SearchRes> {
         self.cache.iter()
     }
 

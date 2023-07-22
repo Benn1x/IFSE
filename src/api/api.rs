@@ -8,6 +8,7 @@ use rustyline::error::ReadlineError;
 use rustyline::DefaultEditor;
 
 use crate::api::lexer::Input;
+use crate::search_engine::search::SearchRes;
 use crate::search_engine::search_engine::Engine;
 
 pub struct API {
@@ -75,8 +76,7 @@ impl API {
                         for element in self.engine.iterate() {
                             println!(
                                 "Phrase search: {:?} : Found in location {:?}",
-                                element.0,
-                                element.1.unwarp()
+                                element.0, element.1
                             );
                         }
                         tx_appr
@@ -99,7 +99,22 @@ impl API {
 
                     Input::Input(input) => {
                         let res = self.engine.get(input);
-                        println!("Found in: {:?}", res.unwarp());
+                        match res {
+                            SearchRes::Success(_) => {}
+                            SearchRes::GlobalSuccess(res) => {
+                                for s_res in res.unwarp().iter() {
+                                    println!(
+                                        "Found in File {} in Line {}",
+                                        s_res.0.get_folder_location().display(),
+                                        s_res.1
+                                    )
+                                }
+                            }
+                            SearchRes::Failure => {
+                                println!("An unexpected behavior accorded. please check the logs")
+                            }
+                            SearchRes::NotFound => println!("No result was found! :("),
+                        }
                         tx_appr
                             .send(true)
                             .expect("error while sending, maybe is the receiver thread down");

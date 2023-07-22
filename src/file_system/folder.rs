@@ -1,10 +1,10 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug)]
 pub struct Folder {
-    location: String,
+    location: PathBuf,
     hash: u64,
 }
 
@@ -13,7 +13,7 @@ impl Folder {
         let mut hasher = DefaultHasher::new();
         location.hash(&mut hasher);
         Self {
-            location,
+            location: Path::new(&location).to_owned(),
             hash: hasher.finish(),
         }
     }
@@ -22,11 +22,7 @@ impl Folder {
         self.hash
     }
 
-    pub fn get_folder_location(&self) -> &str {
+    pub fn get_folder_location(&self) -> &Path {
         &self.location
-    }
-
-    pub fn as_path(&self) -> &Path {
-        Path::new(&self.location)
     }
 }

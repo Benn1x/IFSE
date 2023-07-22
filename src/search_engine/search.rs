@@ -25,14 +25,22 @@ impl Search {
 
 #[derive(Clone, Debug)]
 pub struct Results {
-    _folder: Folder,
+    result: Vec<(Folder, u64)>,
 }
 
 impl Results {
-    pub fn new(folder: Folder) -> Self {
-        Self { _folder: folder }
+    pub fn new(result: Vec<(Folder, u64)>) -> Self {
+        Self { result }
     }
-    pub fn unwarp(&self) -> &str {
-        self._folder.get_folder_location()
+    pub fn unwarp(&self) -> &Vec<(Folder, u64)> {
+        &self.result
     }
+}
+
+#[derive(Clone, Debug)]
+pub enum SearchRes {
+    Success(Vec<(Folder, u64)>),
+    GlobalSuccess(Results),
+    Failure,
+    NotFound,
 }

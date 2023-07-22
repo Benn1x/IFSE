@@ -1,11 +1,14 @@
-use super::super::search::{Results, Search};
+use super::super::search::Search;
 use crate::file_system::folder::Folder;
+use crate::search_engine::search::SearchRes::GlobalSuccess;
+use crate::search_engine::search::{Results, SearchRes};
 use grep::searcher::sinks::UTF8;
 use grep::searcher::Searcher;
 use grep_regex::RegexMatcher;
 use pdf_extract::extract_text;
 use std::path::Path;
 use walkdir::WalkDir;
+
 pub struct Backend {
     // search_engine:
 }
@@ -14,63 +17,66 @@ impl Backend {
     pub fn new() -> Self {
         Self {}
     }
-    pub fn search(&self, phrase: &str, path: &Path) -> Option<Results> {
-        // todo use pdf_extract to also scan pdfs!!!
+    pub fn search(&self, phrase: &str, path: &Path) -> SearchRes {
         let matcher = RegexMatcher::new(&*phrase).expect("Expected Matcher to return true");
-        let mut res: Vec<(u64, String)> = Vec::new();
-        if path.extension().unwrap().eq("pdf") {
-            let text = match extract_text(path) {
-                Ok(text) => text,
-                Err(e) => {
-                    println!("{:?}", e);
-                    return None;
+        let mut res: Vec<(Folder, u64)> = Vec::new();
+        match path.extension() {
+            Some(ex) => {
+                if ex.eq("pdf") {
+                    let text = match extract_text(path) {
+                        Ok(text) => text,
+                        Err(e) => {
+                            println!("{:?}", e);
+                            return SearchRes::Failure;
+                        }
+                    };
+                    match Searcher::new().search_slice(
+                        matcher,
+                        &*text.as_bytes(),
+                        UTF8(|line, _| {
+                            res.push((Folder::new(path.display().to_string()), line));
+                            return Ok(true);
+                        }),
+                    ) {
+                        Ok(_) => (),
+                        Err(e) => println!(
+                            "Error opening file {}, following error occurred: {}",
+                            path.display(),
+                            e
+                        ),
+                    }
+                } else {
+                    match Searcher::new().search_path(
+                        matcher,
+                        &path,
+                        UTF8(|line, s| {
+                            res.push((Folder::new(String::from(s)), line));
+                            return Ok(true);
+                        }),
+                    ) {
+                        Ok(_) => (),
+                        Err(e) => println!(
+                            "Error opening file {}, following error occurred: {}",
+                            path.display(),
+                            e
+                        ),
+                    }
                 }
-            };
-            match Searcher::new().search_slice(
-                matcher,
-                &*text.as_bytes(),
-                UTF8(|line, s| {
-                    res.push((line, String::from(s)));
-                    return Ok(true);
-                }),
-            ) {
-                Ok(_) => (),
-                Err(e) => println!(
-                    "Error opening file {}, following error occurred: {}",
-                    path.display(),
-                    e
-                ),
             }
-        } else {
-            match Searcher::new().search_path(
-                matcher,
-                &path,
-                UTF8(|line, s| {
-                    res.push((line, String::from(s)));
-                    return Ok(true);
-                }),
-            ) {
-                Ok(_) => (),
-                Err(e) => println!(
-                    "Error opening file {}, following error occurred: {}",
-                    path.display(),
-                    e
-                ),
-            }
+            _ => (),
         }
+
         return if !res.is_empty() {
-            Some(Results::new(Folder::new(String::from(format!(
-                "{} at line: {}",
-                path.display(),
-                res[0].0
-            )))))
+            SearchRes::Success(res)
         } else {
-            None
+            SearchRes::NotFound
         };
     }
 
-    pub fn global_search(&self, search: Search) -> Results {
-        let folders = WalkDir::new(search.get_folder().as_path());
+    pub fn global_search(&self, search: Search) -> SearchRes {
+        let folders = WalkDir::new(search.get_folder().get_folder_location());
+        let mut search_results = Vec::<SearchRes>::new();
+        let mut all_res = Vec::<(Folder, u64)>::new();
         for path in folders {
             let res = match path {
                 Ok(path) => {
@@ -81,14 +87,22 @@ impl Backend {
                 }
                 Err(err) => {
                     println!("{}", err);
-                    return Results::new(Folder::new(String::from("Failure")));
+                    return SearchRes::Failure;
                 }
             };
-            if res.is_some() {
-                return res.unwrap();
-            }
+            search_results.push(res);
         }
 
-        Results::new(Folder::new(String::from("Not Found")))
+        for s_res in search_results.iter() {
+            match s_res {
+                SearchRes::Success(res) => all_res.extend(res.iter().cloned()),
+                _ => {}
+            }
+        }
+        if !all_res.is_empty() {
+            return GlobalSuccess(Results::new(all_res));
+        }
+
+        SearchRes::NotFound
     }
 }
