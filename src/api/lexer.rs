@@ -1,20 +1,22 @@
-pub enum Input<'a> {
+pub enum Input {
     Exit,
     Cache,
     CacheSize,
-    Command(Box<Command<'a>>),
+    Empty,
     Input(String),
 }
 
-impl<'a> Input<'a> {
-    pub fn new(inp: &'a String) -> Self {
+impl Input {
+    pub fn new(inp: &String) -> Self {
         let input: Vec<&str> = inp.split_whitespace().collect();
+        if input.is_empty() {
+            return Self::Empty;
+        }
         match input[0] {
             ":q" => Self::Exit,
             ":c" => Self::Cache,
             ":cs" => Self::CacheSize,
-            str if str.starts_with(":") => Self::Command(Command::new(input)),
-            _ => Self::Input(inp.clone()),
+            _ => Self::Input(inp.to_owned()),
         }
     }
 }

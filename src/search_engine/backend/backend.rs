@@ -4,8 +4,8 @@ use crate::search_engine::search::SearchRes::GlobalSuccess;
 use crate::search_engine::search::{Results, SearchRes};
 use grep::searcher::sinks::UTF8;
 use grep::searcher::Searcher;
-use grep_regex::RegexMatcher;
-use pdf_extract::extract_text;
+use log::info;
+use lopdf::Document;
 use std::path::Path;
 use walkdir::WalkDir;
 
@@ -18,13 +18,29 @@ impl Backend {
         Self {}
     }
     pub fn search(&self, phrase: &str, path: &Path) -> SearchRes {
-        let matcher = RegexMatcher::new(&*phrase).expect("Expected Matcher to return true");
+        let matcher =
+            grep::regex::RegexMatcher::new(&*phrase).expect("Expected Matcher to return true");
         let mut res: Vec<(Folder, u64)> = Vec::new();
+        if path.is_dir() || !path.is_file() || path.is_symlink() {
+            return SearchRes::NotFound;
+        }
         match path.extension() {
             Some(ex) => {
                 if ex.eq("pdf") {
-                    let text = match extract_text(path) {
-                        Ok(text) => text,
+                    //content::Content::from_ops();
+                    info!("{}", path.display());
+                    let text = match Document::load(path) {
+                        Ok(text) => {
+                            let pages = text.get_pages();
+                            let mut texts = Vec::new();
+
+                            for (i, _) in pages.iter().enumerate() {
+                                let page_number = (i + 1) as u32;
+                                let text = text.extract_text(&[page_number]);
+                                texts.push(text.unwrap_or_default());
+                            }
+                            texts.join("")
+                        }
                         Err(e) => {
                             println!("{:?}", e);
                             return SearchRes::Failure;
@@ -49,17 +65,13 @@ impl Backend {
                     match Searcher::new().search_path(
                         matcher,
                         &path,
-                        UTF8(|line, s| {
-                            res.push((Folder::new(String::from(s)), line));
+                        UTF8(|line, _| {
+                            res.push((Folder::new(path.display().to_string()), line));
                             return Ok(true);
                         }),
                     ) {
                         Ok(_) => (),
-                        Err(e) => println!(
-                            "Error opening file {}, following error occurred: {}",
-                            path.display(),
-                            e
-                        ),
+                        Err(_) => (),
                     }
                 }
             }

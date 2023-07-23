@@ -2,10 +2,11 @@
 
 use log::info;
 use log::LevelFilter;
-use log4rs::append::console::ConsoleAppender;
+use log4rs::append::file::FileAppender;
 use log4rs::config::Appender;
 use log4rs::config::Root;
 use log4rs::Config;
+use std::path::Path;
 
 pub mod api;
 pub mod config;
@@ -15,7 +16,10 @@ pub mod search_engine;
 
 // TODO Config System, still need to decide what kinda config
 fn main() {
-    let stdout = ConsoleAppender::builder().build();
+    let stdout = match FileAppender::builder().build(Path::new("log.log")) {
+        Ok(res) => res,
+        Err(_) => panic!("Err initializing the Logging file"),
+    };
     let config = Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
         .build(Root::builder().appender("stdout").build(LevelFilter::Info))
