@@ -1,5 +1,5 @@
 use crate::file_system::folder::Folder;
-
+#[derive(Clone, Debug)]
 pub struct Search {
     pub phrase: String,
     pub folder: Folder,
@@ -32,15 +32,18 @@ impl Results {
     pub fn new(result: Vec<(Folder, u64)>) -> Self {
         Self { result }
     }
-    pub fn unwarp(&self) -> &Vec<(Folder, u64)> {
+    pub fn unwrap(&self) -> &Vec<(Folder, u64)> {
         &self.result
+    }
+    pub fn size(&self) -> usize {
+        self.result.len()
     }
 }
 
 #[derive(Clone, Debug)]
 pub enum SearchRes {
-    Success(Vec<(Folder, u64)>),
-    GlobalSuccess(Results),
+    Success((Vec<(Folder, u64)>, u64)),
+    GlobalSuccess((Results, u64, u64)),
     Failure,
-    NotFound,
+    NotFound(u64),
 }

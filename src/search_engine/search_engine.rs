@@ -1,6 +1,7 @@
 use crate::file_system::folder::Folder;
 use crate::search_engine::backend::backend::Backend;
 use log::{info, warn};
+use std::time::Duration;
 
 use crate::search_engine::search::{Search, SearchRes};
 use moka::sync::{Cache, Iter};
@@ -37,11 +38,12 @@ impl Engine {
         }
     }
 
-    pub fn get(&mut self, phrase: String) -> SearchRes {
+    pub fn get(&mut self, phrase: String) -> (SearchRes, Duration) {
+        let now = std::time::Instant::now();
         match self.cache.get(&*phrase) {
             Some(entry) => {
                 info!("Found inside cache");
-                entry
+                (entry, now.elapsed())
             }
             None => {
                 info!("Not found in cache. Start searching!");
@@ -52,9 +54,9 @@ impl Engine {
                 info!("Start Search!");
                 let result = self.backend.global_search(search);
                 info!("Found! Gave cache to decide if its put in cache!");
+                let now = std::time::Instant::now();
                 self.cache.insert(phrase, result.clone());
-
-                result
+                (result, now.elapsed())
             }
         }
     }

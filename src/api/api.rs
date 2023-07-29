@@ -102,24 +102,40 @@ impl API {
                                 let now = std::time::Instant::now();
                                 let res = self.engine.get(input);
                                 let time = now.elapsed();
-                                match res {
+                                let mut size = 0;
+                                let mut element_count = 0;
+                                let mut threads = 0;
+                                match res.0 {
                                     SearchRes::Success(_) => {}
                                     SearchRes::GlobalSuccess(res) => {
-                                        for s_res in res.unwarp().iter() {
+                                        for s_res in res.0.unwrap().iter() {
                                             println!(
                                                 "Found in File {} in Line {}",
                                                 s_res.0.get_folder_location().display(),
                                                 s_res.1
                                             )
                                         }
+                                        element_count = res.0.size();
+                                        size = res.1;
+                                        threads = res.2;
                                     }
 
                                     SearchRes::Failure => {
                                         println!("An unexpected behavior accorded. please check the logs")
                                     }
-                                    SearchRes::NotFound => println!("No result was found! :("),
+                                    SearchRes::NotFound(size) => println!(
+                                        "Searched in {}mb of data  and no result was found! :(",
+                                        size
+                                    ),
                                 }
-                                println!("Total operation took {:?}", time);
+                                println!(
+                                    "Total operation took {:?} and has used {} threads and searched in {}mb of data with a total count of {} elements, {:?} time needed to load from/into cache",
+                                    time,
+                                    threads,
+                                    size/1_000_000,
+                                    element_count,
+                                    res.1,
+                                );
                             }
                             tx_appr
                                 .send(true)
