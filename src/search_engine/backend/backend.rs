@@ -102,15 +102,18 @@ impl Backend {
                             for path_t in folder {
                                 match path_t {
                                     Ok(path) => {
-                                        if path.clone().into_path().is_dir() {
+                                        let path = path.into_path();
+                                        if path.is_dir() {
                                             continue;
                                         }
 
                                         //println!("{}", total_size);
-                                        res.push(Backend::new().search(
-                                            &*search_t.phrase,
-                                            Box::new(path.path().to_owned()),
-                                        ));
+                                        res.push(
+                                            Backend::new().search(
+                                                &*search_t.phrase,
+                                                Box::new(path.to_owned()),
+                                            ),
+                                        );
                                     }
                                     Err(err) => {
                                         println!("{}", err);

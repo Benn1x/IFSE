@@ -46,7 +46,7 @@ impl Engine {
                 info!("Not found in cache. Start searching!");
                 let search = Search::new(
                     String::from(&*phrase),
-                    Box::new(Path::new("/home/benn1x/Dokumente/").to_owned()),
+                    Box::new(Path::new("/home/benn1x/Dokumente/fdb/").to_owned()),
                 );
                 info!("Start Search!");
                 let result = self.backend.global_search(search);
