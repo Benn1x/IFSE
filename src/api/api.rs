@@ -37,10 +37,10 @@ impl API {
                 let readline = rl.readline(">> ");
                 match readline {
                     Ok(line) => {
-                        rl.add_history_entry(line.clone())
-                            .expect("Unable to write to history");
                         tx.send(Input::new(&line))
                             .expect("error while sending, maybe is the receiver thread down");
+                        rl.add_history_entry(line)
+                            .expect("Unable to write to history");
                     }
                     Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => tx
                         .send(Input::new(&String::from(":q")))
@@ -74,12 +74,12 @@ impl API {
                         }
                         Input::Cache => {
                             println!("Cache Content: ");
-                            for element in self.engine.iterate() {
+                            self.engine.iterate().for_each(|element| {
                                 println!(
                                     "Phrase search: {:?} : Found in location {:?}",
                                     element.0, element.1
                                 );
-                            }
+                            });
                             tx_appr
                                 .send(true)
                                 .expect("error while sending, maybe is the receiver thread down");
@@ -111,7 +111,7 @@ impl API {
                                         for s_res in res.0.unwrap().iter() {
                                             println!(
                                                 "Found in File {} in Line {}",
-                                                s_res.0.get_folder_location().display(),
+                                                s_res.0.display(),
                                                 s_res.1
                                             )
                                         }

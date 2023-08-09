@@ -1,7 +1,6 @@
-use crate::file_system::folder::Folder;
 use crate::search_engine::backend::backend::Backend;
 use log::{info, warn};
-use std::time::Duration;
+use std::{path::Path, time::Duration};
 
 use crate::search_engine::search::{Search, SearchRes};
 use moka::sync::{Cache, Iter};
@@ -10,11 +9,10 @@ pub struct Engine {
     cache: Cache<String, SearchRes>,
     size: u64,
     backend: Backend,
-    _folder: Folder,
 }
 
 impl Engine {
-    pub fn new(location: String) -> Self {
+    pub fn new() -> Self {
         let max_num = match std::env::var("MAX_NUMBER_IN_CACHE") {
             Ok(val) => {
                 match val.parse::<u64>() {
@@ -34,7 +32,6 @@ impl Engine {
             cache: Cache::new(max_num),
             size: max_num,
             backend: Backend::new(),
-            _folder: Folder::new(location),
         }
     }
 
@@ -49,7 +46,7 @@ impl Engine {
                 info!("Not found in cache. Start searching!");
                 let search = Search::new(
                     String::from(&*phrase),
-                    Folder::new(String::from("/home/benn1x/Dokumente/")),
+                    Box::new(Path::new("/home/benn1x/Dokumente/").to_owned()),
                 );
                 info!("Start Search!");
                 let result = self.backend.global_search(search);

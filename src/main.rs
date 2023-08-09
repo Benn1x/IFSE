@@ -11,7 +11,6 @@ use std::path::Path;
 pub mod api;
 pub mod config;
 pub mod database;
-pub mod file_system;
 pub mod search_engine;
 
 // TODO Config System, still need to decide what kinda config
@@ -29,7 +28,7 @@ fn main() {
     // load config
     info!("Successfully loaded the config");
 
-    let engine = search_engine::search_engine::Engine::new(String::from(""));
+    let engine = search_engine::search_engine::Engine::new();
     info!("Successfully started Search-Engine");
 
     let mut api = api::api::API::new(engine);

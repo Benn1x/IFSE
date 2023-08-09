@@ -1,13 +1,14 @@
-use crate::file_system::folder::Folder;
+use std::path::PathBuf;
+
 #[derive(Clone, Debug)]
 pub struct Search {
     pub phrase: String,
-    pub folder: Folder,
+    pub folder: Box<PathBuf>,
     pub results: Option<Results>,
 }
 
 impl Search {
-    pub fn new(phrase: String, folder: Folder) -> Self {
+    pub fn new(phrase: String, folder: Box<PathBuf>) -> Self {
         Self {
             phrase,
             folder,
@@ -18,21 +19,21 @@ impl Search {
         &*self.phrase
     }
 
-    pub fn get_folder(&self) -> &Folder {
+    pub fn get_folder(&self) -> &Box<PathBuf> {
         &self.folder
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct Results {
-    result: Vec<(Folder, u64)>,
+    result: Vec<(Box<PathBuf>, u64)>,
 }
 
 impl Results {
-    pub fn new(result: Vec<(Folder, u64)>) -> Self {
+    pub fn new(result: Vec<(Box<PathBuf>, u64)>) -> Self {
         Self { result }
     }
-    pub fn unwrap(&self) -> &Vec<(Folder, u64)> {
+    pub fn unwrap(&self) -> &Vec<(Box<PathBuf>, u64)> {
         &self.result
     }
     pub fn size(&self) -> usize {
@@ -42,7 +43,7 @@ impl Results {
 
 #[derive(Clone, Debug)]
 pub enum SearchRes {
-    Success((Vec<(Folder, u64)>, u64)),
+    Success((Vec<(Box<PathBuf>, u64)>, u64)),
     GlobalSuccess((Results, u64, u64)),
     Failure,
     NotFound(u64),
