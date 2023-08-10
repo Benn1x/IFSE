@@ -1,14 +1,12 @@
 use super::super::search::Search;
-use crate::search_engine::search::SearchRes::GlobalSuccess;
 use crate::search_engine::search::{Results, SearchRes};
-use grep::searcher::sinks::UTF8;
+use grep::searcher::sinks::Lossy;
 use grep::searcher::Searcher;
 use log::info;
 use lopdf::Document;
 use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
-use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::mpsc::Sender;
 use std::thread;
 use walkdir::WalkDir;
 
@@ -61,7 +59,7 @@ impl Backend {
                 match Searcher::new().search_slice(
                     matcher,
                     &*text,
-                    UTF8(|line, _| {
+                    Lossy(|line, _| {
                         res.push((path.clone(), line));
                         return Ok(true);
                     }),
@@ -80,20 +78,20 @@ impl Backend {
         };
     }
 
-    pub fn global_search(&self, search: Search) -> SearchRes {
-        let folders = WalkDir::new(search.get_folder().as_path()).max_depth(1);
-        let mut search_results = Vec::<SearchRes>::new();
-        let mut all_res = Vec::<(Box<PathBuf>, u64)>::new();
-        let (tx, rx): (Sender<Vec<SearchRes>>, Receiver<Vec<SearchRes>>) = mpsc::channel();
+    pub fn global_search(&self, search: Search, tx: Sender<SearchRes>) {
+        let folders = WalkDir::new(search.get_folder().as_path())
+            .min_depth(1)
+            .max_depth(1);
         let mut threads = 0;
         let mut vec_threads = Vec::<thread::JoinHandle<()>>::new();
-        let tx_mutex = Arc::new(Mutex::new(tx));
         for path in folders {
             match path {
                 Ok(path_t) => {
                     threads += 1;
                     {
-                        let tx_t = tx_mutex.clone();
+                        let mut total_size: u64 = 0;
+                        let mut all_res = Vec::<(Box<PathBuf>, u64)>::new();
+                        let tx_t = tx.clone();
                         let search_t = search.clone();
                         let path_t = path_t.clone();
                         vec_threads.push(thread::spawn(move || {
@@ -120,54 +118,37 @@ impl Backend {
                                     }
                                 }
                             }
-                            tx_t.lock()
-                                .unwrap()
-                                .send(res)
-                                .expect("Unable to send the result");
+                            for s_res in res.iter() {
+                                match s_res {
+                                    SearchRes::Success(res) => {
+                                        all_res.extend_from_slice(&res.0);
+                                        total_size += res.1;
+                                    }
+                                    SearchRes::NotFound(res) => total_size += res,
+                                    _ => {}
+                                }
+                            }
+                            tx_t.send(SearchRes::GlobalSuccess((
+                                Results::new(all_res),
+                                total_size,
+                                threads,
+                            )))
+                            .expect("Unable to send the result");
                         }));
                     }
                 }
                 Err(err) => {
                     println!("{}", err);
-                    return SearchRes::Failure;
+                    tx.send(SearchRes::Failure).expect("Sender might be down");
                 }
             }
         }
-        let total_thread = threads;
-        loop {
-            match rx.recv() {
-                Ok(res) => {
-                    search_results.extend(res.clone());
-                    threads -= 1;
-                    if threads == 0 {
-                        break;
-                    }
-                }
-                Err(_) => {
-                    if threads == 0 {
-                        break;
-                    }
-                }
-            }
-        }
+
+        println!("Using {} thread(s) for searching", vec_threads.len());
+
         for thread in vec_threads {
             thread.join().expect("Unable to join the thread");
         }
-        let mut total_size = 0;
-        for s_res in search_results.iter() {
-            match s_res {
-                SearchRes::Success(res) => {
-                    all_res.extend_from_slice(&res.0);
-                    total_size += res.1;
-                }
-                SearchRes::NotFound(size) => total_size += size,
-                _ => {}
-            }
-        }
-        if !all_res.is_empty() {
-            return GlobalSuccess((Results::new(all_res), total_size, total_thread));
-        }
-
-        SearchRes::NotFound(total_size)
+        tx.send(SearchRes::Done).expect("Receiver down");
     }
 }

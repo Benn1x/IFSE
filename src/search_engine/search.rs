@@ -1,3 +1,4 @@
+use std::mem;
 use std::path::PathBuf;
 
 #[derive(Clone, Debug)]
@@ -47,4 +48,11 @@ pub enum SearchRes {
     GlobalSuccess((Results, u64, u64)),
     Failure,
     NotFound(u64),
+    Done,
+}
+
+impl PartialEq<SearchRes> for SearchRes {
+    fn eq(&self, other: &Self) -> bool {
+        mem::discriminant(self) == mem::discriminant(other)
+    }
 }

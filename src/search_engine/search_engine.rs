@@ -1,14 +1,16 @@
 use crate::search_engine::backend::backend::Backend;
 use log::{info, warn};
+use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
 use std::{path::Path, time::Duration};
 
 use crate::search_engine::search::{Search, SearchRes};
 use moka::sync::{Cache, Iter};
 
+#[derive(Clone)]
 pub struct Engine {
     cache: Cache<String, SearchRes>,
     size: u64,
-    backend: Backend,
 }
 
 impl Engine {
@@ -31,29 +33,50 @@ impl Engine {
         Self {
             cache: Cache::new(max_num),
             size: max_num,
-            backend: Backend::new(),
         }
     }
 
-    pub fn get(&mut self, phrase: String) -> (SearchRes, Duration) {
+    pub fn get(&mut self, phrase: String, tx_: Sender<(SearchRes, Duration)>) {
         let now = std::time::Instant::now();
         match self.cache.get(&*phrase) {
             Some(entry) => {
                 info!("Found inside cache");
-                (entry, now.elapsed())
+                tx_.send((entry, now.elapsed())).expect("Receiver down");
             }
             None => {
                 info!("Not found in cache. Start searching!");
                 let search = Search::new(
-                    String::from(&*phrase),
-                    Box::new(Path::new("/home/benn1x/Dokumente/fdb/").to_owned()),
+                    phrase.clone(),
+                    Box::new(Path::new("/home/benn1x/Dokumente/").to_owned()),
                 );
                 info!("Start Search!");
-                let result = self.backend.global_search(search);
+                let (tx, rx): (Sender<SearchRes>, Receiver<SearchRes>) = mpsc::channel();
+                {
+                    let search = search;
+                    let tx = tx;
+                    std::thread::spawn(|| {
+                        Backend::new().global_search(search, tx);
+                    });
+                }
+                loop {
+                    let res = match rx.recv() {
+                        Ok(res) => res,
+                        Err(e) => {
+                            println!("{e}");
+                            tx_.send((SearchRes::Failure, now.elapsed()))
+                                .expect("Receiver down");
+                            return;
+                        }
+                    };
+                    if res != SearchRes::Done {
+                        self.cache.insert(phrase.clone(), res.clone());
+                        tx_.send((res, now.elapsed())).expect("Receiver down");
+                    } else {
+                        tx_.send((res, now.elapsed())).expect("Receiver down");
+                        break;
+                    }
+                }
                 info!("Found! Gave cache to decide if its put in cache!");
-                let now = std::time::Instant::now();
-                self.cache.insert(phrase, result.clone());
-                (result, now.elapsed())
             }
         }
     }

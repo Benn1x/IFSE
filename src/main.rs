@@ -1,5 +1,4 @@
 #![deny(warnings)]
-
 use log::info;
 use log::LevelFilter;
 use log4rs::append::file::FileAppender;
@@ -14,6 +13,7 @@ pub mod database;
 pub mod search_engine;
 
 // TODO Config System, still need to decide what kinda config
+
 fn main() {
     let stdout = match FileAppender::builder().build(Path::new("log.log")) {
         Ok(res) => res,

@@ -2,6 +2,7 @@ use std::process::exit;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
+use std::time::Duration;
 
 use crate::api::commands::execute;
 use rustyline::error::ReadlineError;
@@ -66,45 +67,61 @@ impl API {
         loop {
             let input = rx.recv();
             match input {
-                Ok(inp) => {
-                    match inp {
-                        Input::Exit => {
-                            self.engine.shutdown();
-                            exit(0)
-                        }
-                        Input::Cache => {
-                            println!("Cache Content: ");
-                            self.engine.iterate().for_each(|element| {
-                                println!(
-                                    "Phrase search: {:?} : Found in location {:?}",
-                                    element.0, element.1
-                                );
-                            });
-                            tx_appr
-                                .send(true)
-                                .expect("error while sending, maybe is the receiver thread down");
-                        }
-                        Input::CacheSize => {
-                            println!("Total cache size is {:?}, currently in cache are {:?} elements. Leaving {:?} free spaces", self.engine.get_size() ,self.engine.cache_size(), self.engine.get_size() - self.engine.cache_size());
-                            tx_appr
-                                .send(true)
-                                .expect("error while sending, maybe is the receiver thread down");
-                        }
+                Ok(inp) => match inp {
+                    Input::Exit => {
+                        self.engine.shutdown();
+                        exit(0)
+                    }
+                    Input::Cache => {
+                        println!("Cache Content: ");
+                        self.engine.iterate().for_each(|element| {
+                            println!(
+                                "Phrase search: {:?} : Found in location {:?}",
+                                element.0, element.1
+                            );
+                        });
+                        tx_appr
+                            .send(true)
+                            .expect("error while sending, maybe is the receiver thread down");
+                    }
+                    Input::CacheSize => {
+                        println!("Total cache size is {:?}, currently in cache are {:?} elements. Leaving {:?} free spaces", self.engine.get_size() ,self.engine.cache_size(), self.engine.get_size() - self.engine.cache_size());
+                        tx_appr
+                            .send(true)
+                            .expect("error while sending, maybe is the receiver thread down");
+                    }
 
-                        Input::Empty => (),
+                    Input::Empty => (),
 
-                        Input::Input(input) => {
-                            if input.starts_with(":") {
-                                let inp: Vec<&str> = input.split_whitespace().collect();
-                                let command = Command::new(inp);
-                                execute(&command);
-                            } else {
-                                let now = std::time::Instant::now();
-                                let res = self.engine.get(input);
-                                let time = now.elapsed();
-                                let mut size = 0;
-                                let mut element_count = 0;
-                                let mut threads = 0;
+                    Input::Input(input) => {
+                        if input.starts_with(":") {
+                            let inp: Vec<&str> = input.split_whitespace().collect();
+                            let command = Command::new(inp);
+                            execute(&command);
+                        } else {
+                            let now = std::time::Instant::now();
+                            let (tx, rx): (
+                                Sender<(SearchRes, Duration)>,
+                                Receiver<(SearchRes, Duration)>,
+                            ) = mpsc::channel();
+                            {
+                                let mut engine = self.engine.clone();
+                                thread::spawn(move || {
+                                    let tx = tx;
+                                    engine.get(input, tx);
+                                });
+                            }
+                            let mut size = 0;
+                            let mut element_count = 0;
+                            let mut threads = 0;
+                            loop {
+                                let res = match rx.recv() {
+                                    Ok(res) => res,
+                                    Err(err) => {
+                                        println!("{err}");
+                                        (SearchRes::Failure, Duration::from_millis(0))
+                                    }
+                                };
                                 match res.0 {
                                     SearchRes::Success(_) => {}
                                     SearchRes::GlobalSuccess(res) => {
@@ -121,28 +138,30 @@ impl API {
                                     }
 
                                     SearchRes::Failure => {
-                                        println!("An unexpected behavior accorded. please check the logs")
+                                        println!("An unexpected behavior accorded. please check the logs");
+                                        break;
                                     }
                                     SearchRes::NotFound(size) => println!(
                                         "Searched in {}mb of data  and no result was found! :(",
                                         size
                                     ),
+
+                                    SearchRes::Done => break,
                                 }
-                                println!(
-                                    "Total operation took {:?} and has used {} threads and searched in {}mb of data with a total count of {} elements, {:?} time needed to load from/into cache",
-                                    time,
+                            }
+                            println!(
+                                    "Total operation took {:?} and has used {} threads and searched in {}mb of data with a total count of {} elements",
+                                    now.elapsed(),
                                     threads,
                                     size/1_000_000,
                                     element_count,
-                                    res.1,
                                 );
-                            }
-                            tx_appr
-                                .send(true)
-                                .expect("error while sending, maybe is the receiver thread down");
                         }
+                        tx_appr
+                            .send(true)
+                            .expect("error while sending, maybe is the receiver thread down");
                     }
-                }
+                },
                 Err(recver) => {
                     println!("{:?}", recver);
                     tx_appr
